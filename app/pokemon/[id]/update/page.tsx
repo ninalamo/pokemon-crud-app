@@ -4,35 +4,48 @@ import { useParams, useRouter } from 'next/navigation';
 import { getPokemonById, updatePokemon } from '../../../services/pokemonService';
 
 export default function UpdatePokemon() {
+  // Grab the Pokémon ID from the URL—yes, it's there if you look.
   const params = useParams();
-  const id = Number(params.id); // Get the Pokémon ID from the URL
-  const router = useRouter();
-  const [name, setName] = useState<string>(''); // State for the Pokémon name
+  const id = Number(params.id);
 
-  // Fetch the Pokémon's current name when the page loads
+  // Set up the router for navigation (because we all love a good redirect).
+  const router = useRouter();
+
+  // This state holds the Pokémon name. We initialize it to an empty string,
+  // assuming our API isn’t too kind to leave it undefined.
+  const [name, setName] = useState<string>('');
+
+  // When the component mounts, fetch the current Pokémon details.
   useEffect(() => {
     async function fetchPokemon() {
       try {
-        const pokemon = await getPokemonById(id); // Fetch Pokémon by ID
-        setName(pokemon.name || ''); // Set the name as the default value
+        // Attempt to fetch the Pokémon by its ID—fingers crossed!
+        const pokemon = await getPokemonById(id);
+        // Set the name using the fetched data, or default to an empty string if something went wrong.
+        setName(pokemon.name || '');
       } catch (error) {
+        // Log an error if the fetch fails. Because error handling is important.
         console.error('Error fetching Pokémon:', error);
       }
     }
     fetchPokemon();
-  }, [id]);
+  }, [id]); // Re-run this effect only if the ID changes, because consistency matters.
 
+  // When the user submits the form, update the Pokémon.
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+    e.preventDefault(); // Prevent the form from doing its default dance.
     try {
-      await updatePokemon(id, {
-        name,
-        id: id
-      }); // Update the Pokémon with the new name
+      // Send the updated Pokémon info to the API.
+      // Yes, we're redundantly sending the ID in the request body—because some APIs like extra assurance.
+      await updatePokemon(id, { id: id, name });
+      // Celebrate our success with an alert. Enjoy the moment!
       alert('Pokemon updated successfully!');
-      router.push('/'); // Redirect to the home page
+      // Redirect back to the home page so you can admire your handiwork.
+      router.push('/');
     } catch (error) {
+      // Log the error when things don't go as planned. Oops.
       console.error('Error updating Pokémon:', error);
+      // Inform the user that the update didn't work. Not every day is perfect.
       alert('There was an error updating the Pokémon.');
     }
   };
@@ -49,8 +62,8 @@ export default function UpdatePokemon() {
             type="text"
             id="name"
             name="name"
-            value={name} // Preloaded with the current name
-            onChange={(e) => setName(e.target.value)} // Editable
+            value={name} // The input is preloaded with the current name. You're welcome.
+            onChange={(e) => setName(e.target.value)} // Adjust the name because change happens.
             placeholder="Enter new name"
             required
             className="w-full p-2 border border-gray-300 rounded mt-1"
