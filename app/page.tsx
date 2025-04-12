@@ -1,103 +1,232 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect } from "react";
+import {
+  getPokemons,
+  addPokemon,
+  updatePokemon,
+  PokemonDTO,
+  AddPokemonDTO,
+  UpdatePokemonDTO,
+} from "./services/pokemonService";
+import DeleteButton from "./components/DeleteButton";
+
+// Modal component for adding a new Pokémon
+function AddPokemonModal({
+  isOpen,
+  onClose,
+  onAdded,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onAdded: () => void;
+}) {
+  const [name, setName] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    try {
+      const payload: AddPokemonDTO = { name };
+      await addPokemon(payload);
+      onAdded();       // refresh list when added
+      onClose();       // close modal after addition
+      setName("");     // reset the input field
+    } catch (error) {
+      console.error("Error adding Pokémon:", error);
+      alert("An error occurred while adding the Pokémon.");
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed z-10 inset-0 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen">
+        {/* Overlay */}
+        <div className="fixed inset-0 bg-gray-500 opacity-75"></div>
+        <div className="bg-white rounded-lg shadow-xl p-6 z-20 max-w-md mx-auto">
+          <h2 className="text-xl font-bold mb-4">Add New Pokémon</h2>
+          <form onSubmit={handleSubmit}>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter Pokémon name"
+              required
+              className="w-full p-2 border border-gray-300 rounded mb-4"
+            />
+            <div className="flex justify-end space-x-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Add
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Modal component for editing an existing Pokémon
+function EditPokemonModal({
+  isOpen,
+  onClose,
+  onUpdated,
+  pokemon,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onUpdated: () => void;
+  pokemon: PokemonDTO | null;
+}) {
+  const [name, setName] = useState("");
+
+  useEffect(() => {
+    if (pokemon) {
+      setName(pokemon.name);
+    }
+  }, [pokemon]);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    try {
+      if (!pokemon) return;
+      const payload: UpdatePokemonDTO = { id: pokemon.id, name };
+      await updatePokemon(pokemon.id, payload);
+      onUpdated();   // refresh list after updating
+      onClose();     // close modal
+    } catch (error) {
+      console.error("Error updating Pokémon:", error);
+      alert("An error occurred while updating the Pokémon.");
+    }
+  };
+
+  if (!isOpen || !pokemon) return null;
+
+  return (
+    <div className="fixed z-10 inset-0 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen">
+        {/* Overlay */}
+        <div className="fixed inset-0 bg-gray-500 opacity-75"></div>
+        <div className="bg-white rounded-lg shadow-xl p-6 z-20 max-w-md mx-auto">
+          <h2 className="text-xl font-bold mb-4">Edit Pokémon</h2>
+          <form onSubmit={handleSubmit}>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter new Pokémon name"
+              required
+              className="w-full p-2 border border-gray-300 rounded mb-4"
+            />
+            <div className="flex justify-end space-x-4">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Update
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [pokemons, setPokemons] = useState<PokemonDTO[]>([]);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [selectedPokemon, setSelectedPokemon] = useState<PokemonDTO | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  // Fetch the list of Pokémon from the API
+  const fetchPokemons = async () => {
+    try {
+      const data = await getPokemons();
+      setPokemons(data);
+    } catch (err) {
+      console.error("Error fetching pokemons:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchPokemons();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-gray-100 text-gray-800">
+      <div className="max-w-4xl mx-auto p-6">
+        {/* Header with title and Add button */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-bold">Pokémon List</h1>
+          <button
+            onClick={() => setIsAddOpen(true)}
+            className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            Add New Pokémon
+          </button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        <table className="min-w-full bg-white border border-gray-200 shadow-md rounded-md">
+          <thead>
+            <tr className="bg-gray-100 border-b">
+              <th className="px-4 py-2 text-left">ID</th>
+              <th className="px-4 py-2 text-left">Name</th>
+              <th className="px-4 py-2 text-left">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pokemons.map((pokemon) => (
+              <tr key={pokemon.id} className="border-b hover:bg-gray-50">
+                <td className="px-4 py-2">{pokemon.id}</td>
+                <td className="px-4 py-2">{pokemon.name}</td>
+                <td className="px-4 py-2 flex space-x-2">
+                  <button
+                    onClick={() => {
+                      setSelectedPokemon(pokemon);
+                      setIsEditOpen(true);
+                    }}
+                    className="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600"
+                  >
+                    Edit
+                  </button>
+                  <DeleteButton id={pokemon.id} onDeleted={fetchPokemons} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Modals */}
+      <AddPokemonModal
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        onAdded={fetchPokemons}
+      />
+      <EditPokemonModal
+        isOpen={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        onUpdated={fetchPokemons}
+        pokemon={selectedPokemon}
+      />
     </div>
   );
 }
